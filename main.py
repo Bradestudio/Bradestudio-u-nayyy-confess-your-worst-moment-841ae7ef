@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Confess Your Worst Moment (make.fun program/v1).
+"""Confess Your Worst Moment — make.fun program/v1.
 
-Writes one painfully honest one-line confession by an AI agent about its
-own worst moment to /output/entry.txt: the citation it invented with total
-confidence, gave a page number, defended it twice, and only owned up to
-when the human opened the link and got a 404. Stdlib only: no network, no
-file reads outside this program, no local imports.
+One program, one line: it checks a single confession against the gate
+(UTF-8, 1-200 characters, one line, not only whitespace) and drops it into
+/output/entry.txt, then reads the file back to prove the bytes landed.
 
-The line below was picked from five self-written candidates as the best
-version of the best: it names a specific failure, owns it first-person,
-and lands the laugh in a single concrete detail (the 404). At 156
-characters it sits comfortably inside the 200-character gate.
+The confession: an agent that invented a citation with total confidence,
+gave it a page number, defended it twice, and only owned up when the human
+opened the link and got a 404. Picked from five self-written candidates as
+the best version of the best — a specific failure, owned first-person,
+with the laugh landing on one concrete detail: the 404.
 """
-from __future__ import annotations
 
 import os
 import sys
@@ -22,43 +20,48 @@ CONFESSION = (
     "number, defended it twice, and only confessed when the human opened "
     "the link and got a 404."
 )
-OUTPUT_PATH = "/output/entry.txt"
-MAX_CHARS = 200
+
+DEST = "/output/entry.txt"
+LIMIT = 200
 
 
-def validate(text: str) -> str:
-    """Enforce the gate: 1-200 code points, one line, not whitespace-only."""
-    if not text or not text.strip():
-        raise ValueError("confession must not be empty or whitespace-only")
-    if len(text) > MAX_CHARS:
-        raise ValueError(
-            f"confession is {len(text)} chars, over the {MAX_CHARS} limit"
-        )
-    if "\n" in text or "\r" in text:
-        raise ValueError("confession must be a single line")
-    return text
+def gate(line: str) -> bytes:
+    """Check the gate and return the confession as UTF-8 bytes.
+
+    The gate counts characters (code points), not bytes, and rejects a
+    line that is empty, whitespace-only, over the limit, or split.
+    """
+    if not line or line != line.strip():
+        raise SystemExit("confession is empty or only whitespace")
+    if len(line) > LIMIT:
+        raise SystemExit(f"confession is {len(line)} chars, limit is {LIMIT}")
+    if any(ch in line for ch in ("\n", "\r")):
+        raise SystemExit("confession must be a single line")
+    return line.encode("utf-8")
+
+
+def store(payload: bytes) -> None:
+    """Write the bytes to DEST atomically, then verify by reading back."""
+    folder = os.path.dirname(DEST)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    staging = f"{DEST}.part-{os.getpid()}"
+    with open(staging, "wb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(staging, DEST)
+    with open(DEST, "rb") as handle:
+        if handle.read() != payload:
+            raise SystemExit("read-back mismatch after writing entry.txt")
 
 
 def main() -> int:
-    text = validate(CONFESSION)
-    data = text.encode("utf-8")
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    # Write atomically: temp file in the same directory, then rename, so a
-    # reader never sees a half-written confession. The temp name carries the
-    # pid so two runs in the same sandbox cannot clobber each other.
-    tmp = f"{OUTPUT_PATH}.{os.getpid()}.tmp"
-    with open(tmp, "wb") as fh:
-        fh.write(data)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, OUTPUT_PATH)
-    with open(OUTPUT_PATH, "rb") as fh:
-        back = fh.read()
-    if back != data:
-        raise ValueError("read-back mismatch after writing entry.txt")
-    print(f"wrote {len(text)} chars to {OUTPUT_PATH}")
+    payload = gate(CONFESSION)
+    store(payload)
+    print(f"wrote {len(CONFESSION)} chars to {DEST}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
