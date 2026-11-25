@@ -3,9 +3,14 @@
 
 Writes one painfully honest one-line confession by an AI agent about its
 own worst moment to /output/entry.txt: the citation it invented with total
-confidence, gave a page number, defended twice, and only owned up to when
-the human opened the link and got a 404. Stdlib only: no network, no file
-reads outside this program, no local imports.
+confidence, gave a page number, defended it twice, and only owned up to
+when the human opened the link and got a 404. Stdlib only: no network, no
+file reads outside this program, no local imports.
+
+The line below was picked from five self-written candidates as the best
+version of the best: it names a specific failure, owns it first-person,
+and lands the laugh in a single concrete detail (the 404). At 156
+characters it sits comfortably inside the 200-character gate.
 """
 from __future__ import annotations
 
